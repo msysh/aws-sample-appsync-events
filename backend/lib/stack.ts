@@ -8,57 +8,75 @@ export class Stack extends cdk.Stack {
     const apiName = this.node.tryGetContext('apiName') || 'AppSyncEventsDemo';
     const channelName = this.node.tryGetContext('channelName') || 'default';
 
-    const api = new cdk.aws_appsync.CfnApi(this, 'Api', {
-      name: apiName,
-      eventConfig: {
-        authProviders:[{
-          authType: 'API_KEY',
+    // -----------------------------
+    // AppSync Events
+    // -----------------------------
+    const api = new cdk.aws_appsync.EventApi(this, 'EventApi', {
+      apiName: apiName,
+      authorizationConfig: {
+        authProviders: [{
+          authorizationType: cdk.aws_appsync.AppSyncAuthorizationType.API_KEY,
+          apiKeyConfig: {
+            expires: cdk.Expiration.after(cdk.Duration.days(30)),
+          },
         }],
-        connectionAuthModes: [{
-          authType: 'API_KEY',
-        }],
-        defaultPublishAuthModes: [{
-          authType: 'API_KEY',
-        }],
-        defaultSubscribeAuthModes: [{
-          authType: 'API_KEY',
-        }],
+        connectionAuthModeTypes: [
+          cdk.aws_appsync.AppSyncAuthorizationType.API_KEY,
+        ],
+        defaultPublishAuthModeTypes: [
+          cdk.aws_appsync.AppSyncAuthorizationType.API_KEY,
+        ],
+        defaultSubscribeAuthModeTypes: [
+          cdk.aws_appsync.AppSyncAuthorizationType.API_KEY,
+        ]
+      },
+      logConfig: {
+        fieldLogLevel: cdk.aws_appsync.AppSyncFieldLogLevel.INFO,
+        retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
       },
     });
 
-    const channelNamespace = new cdk.aws_appsync.CfnChannelNamespace(this, 'ChannelNamespace', {
-      apiId: api.attrApiId,
-      name: channelName,
-    });
+    // -----------------------------
+    // Appsync Event Channel Namespace
+    // -----------------------------
+    const channelNamespace = api.addChannelNamespace(channelName);
 
-    const apiKey = new cdk.aws_appsync.CfnApiKey(this, 'ApiKey', {
-      apiId: api.attrApiId,
-      expires: Math.floor(Date.now() / 1000 + (30 * 24 * 60 * 60))
-    });
-
-    new cdk.CfnOutput(this, 'Output-AppSyncHttpEndpoint', {
-      description: 'AppSync HTTP Endpoint',
-      value: api.attrDnsHttp,
-    });
-
-    new cdk.CfnOutput(this, 'Output-AppSyncRealtimeEndpoint', {
-      description: 'AppSync Realtime Endpoint',
-      value: api.attrDnsRealtime
+    // -----------------------------
+    // Outputs
+    // -----------------------------
+    new cdk.CfnOutput(this, 'Output-AppSyncApiId', {
+      description: 'AppSync Events API ID',
+      value: api.apiId,
     });
 
     new cdk.CfnOutput(this, 'Output-AppSyncApiName', {
-      description: 'AppSync API Name',
-      value: api.name,
+      description: 'AppSync Events API Name',
+      value: (api.node.defaultChild as cdk.aws_appsync.CfnApi).name,
     });
 
     new cdk.CfnOutput(this, 'Output-AppSyncChannelNamespace', {
-      description: 'AppSync Channel Namespace',
-      value: channelNamespace.name,
+      description: 'AppSync Events Channel Namespace',
+      value: (channelNamespace.node.defaultChild as cdk.aws_appsync.CfnChannelNamespace).name,
     });
 
-    new cdk.CfnOutput(this, 'Output-ApiKey', {
-      description: 'AppSync API Key',
-      value: apiKey.attrApiKey
+    new cdk.CfnOutput(this, 'Output-AppSyncHttpEndpoint', {
+      description: 'AppSync Events HTTP Endpoint',
+      value: api.httpDns,
+    });
+
+    new cdk.CfnOutput(this, 'Output-AppSyncRealtimeEndpoint', {
+      description: 'AppSync Events Realtime Endpoint',
+      value: api.realtimeDns
+    });
+
+    new cdk.CfnOutput(this, 'Output-AppSyncApiKey', {
+      description: 'AppSync Events API Key',
+      value: api.apiKeys['Default'].attrApiKey,
+    });
+
+    new cdk.CfnOutput(this, 'Output-AppSyncLogGroupName', {
+      description: 'AppSync Events LogGroup Name',
+      value: api.logGroup.logGroupName,
     });
   }
 }
